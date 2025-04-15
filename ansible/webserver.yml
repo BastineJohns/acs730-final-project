@@ -20,7 +20,7 @@
 
     - name: Download clock.png from S3 using get_url
       get_url:
-        url: "https://acs-730-final-project.s3.us-east-1.amazonaws.com/clock.png"
+        url: "https://aws-final-project-image-bucket.s3.us-east-1.amazonaws.com/clock.png"
         dest: /var/www/html/clock.png
         mode: "0644"
       # This task fetches the image from S3 (which must be publicly accessible)
