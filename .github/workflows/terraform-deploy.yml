@@ -60,19 +60,22 @@ jobs:
           ENV_DIR="terraform/${{ steps.getenv.outputs.environment }}"
           echo "Using environment directory: $ENV_DIR"
           
-          # Initialize Terraform with explicit region and reconfigure
+          # Force AWS CLI to use us-east-1
+          export AWS_REGION=us-east-1
+          export AWS_DEFAULT_REGION=us-east-1
+          
+          # Initialize with explicit endpoint configuration
           terraform -chdir="$ENV_DIR" init \
-            -backend-config="bucket=your-tfstate-bucket" \
+            -backend-config="bucket=ac5730-final-project-bucket" \
             -backend-config="key=${{ steps.getenv.outputs.environment }}/terraform.tfstate" \
             -backend-config="region=us-east-1" \
+            -backend-config="endpoint=https://s3.us-east-1.amazonaws.com" \
             -backend-config="skip_region_validation=true" \
             -reconfigure
           
-          # Validate configuration
+          # Validate and plan
           terraform -chdir="$ENV_DIR" validate
-          
-          # Generate execution plan with detailed output
-          terraform -chdir="$ENV_DIR" plan -input=false -detailed-exitcode
+          terraform -chdir="$ENV_DIR" plan -input=false
 
   ansible:
     runs-on: ubuntu-latest
