@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "acs-730-final-prod"
+    bucket         = "acs730-final-project-bucket"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
   }
