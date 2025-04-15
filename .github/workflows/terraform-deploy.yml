@@ -60,14 +60,19 @@ jobs:
           ENV_DIR="terraform/${{ steps.getenv.outputs.environment }}"
           echo "Using environment directory: $ENV_DIR"
           
-          # Initialize Terraform
+          # Initialize Terraform with explicit region and reconfigure
           terraform -chdir="$ENV_DIR" init \
             -backend-config="bucket=your-tfstate-bucket" \
-            -backend-config="key=${{ steps.getenv.outputs.environment }}/terraform.tfstate"
+            -backend-config="key=${{ steps.getenv.outputs.environment }}/terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="skip_region_validation=true" \
+            -reconfigure
           
-          # Validate and Plan
+          # Validate configuration
           terraform -chdir="$ENV_DIR" validate
-          terraform -chdir="$ENV_DIR" plan
+          
+          # Generate execution plan with detailed output
+          terraform -chdir="$ENV_DIR" plan -input=false -detailed-exitcode
 
   ansible:
     runs-on: ubuntu-latest
