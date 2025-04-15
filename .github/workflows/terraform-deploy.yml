@@ -20,7 +20,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.5.0  # Pinned version
+          terraform_version: 1.5.0
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -30,38 +30,38 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Determine Environment Directory
+      - name: Determine Environment
         id: getenv
         run: |
-          # Default to 'dev' if not on a branch
           if [[ "$GITHUB_REF" == refs/heads/* ]]; then
             branch="${GITHUB_REF#refs/heads/}"
           else
             branch="dev"
           fi
-          echo "environment=${branch//\//-}" >> $GITHUB_OUTPUT  # Replace slashes for directory safety
+          # Map branch names to environment directories
+          case $branch in
+            main) env_dir="prod" ;;
+            *) env_dir="$branch" ;;
+          esac
+          echo "env_dir=terraform/$env_dir" >> $GITHUB_OUTPUT
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v2
         with:
           tflint_version: v0.47.0
 
-      - name: Terraform Init, Validate & Plan
+      - name: Terraform Init
         run: |
-          ENV_DIR="${{ steps.getenv.outputs.environment }}"
-          
-          # Create directory if it doesn't exist
-          mkdir -p "$ENV_DIR"
-          
-          echo "Using environment directory: $ENV_DIR"
-          
-          # Initialize if .terraform doesn't exist
-          if [ ! -d "$ENV_DIR/.terraform" ]; then
-            terraform -chdir="$ENV_DIR" init
-          fi
-          
-          terraform -chdir="$ENV_DIR" validate
-          terraform -chdir="$ENV_DIR" plan
+          echo "Using environment directory: ${{ steps.getenv.outputs.env_dir }}"
+          terraform -chdir="${{ steps.getenv.outputs.env_dir }}" init \
+            -backend-config="bucket=your-tfstate-bucket" \
+            -backend-config="key=${{ steps.getenv.outputs.env_dir }}/terraform.tfstate"
+
+      - name: Terraform Validate
+        run: terraform -chdir="${{ steps.getenv.outputs.env_dir }}" validate
+
+      - name: Terraform Plan
+        run: terraform -chdir="${{ steps.getenv.outputs.env_dir }}" plan
 
   ansible:
     runs-on: ubuntu-latest
