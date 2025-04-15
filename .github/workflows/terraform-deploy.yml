@@ -1,3 +1,4 @@
+
 name: Terraform CI
 
 on:
@@ -12,15 +13,17 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     env:
+      # These environment variables will be picked up by any AWS CLI or SDK calls.
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
       AWS_REGION: us-east-1
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0  # Pinned version
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -30,39 +33,42 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Determine Environment Directory
+      - name: Determine Environment
         id: getenv
         run: |
-          # Default to 'dev' if not on a branch
           if [[ "$GITHUB_REF" == refs/heads/* ]]; then
             branch="${GITHUB_REF#refs/heads/}"
+            case $branch in
+              main) env="prod" ;;
+              release/*) env="staging" ;;
+              *) env="dev" ;;
+            esac
           else
-            branch="dev"
+            env="dev" # Default for tags/other triggers
           fi
-          echo "environment=${branch//\//-}" >> $GITHUB_OUTPUT  # Replace slashes for directory safety
+          echo "environment=$env" >> $GITHUB_OUTPUT
+          echo "branch=$branch" >> $GITHUB_OUTPUT
 
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v2
-        with:
-          tflint_version: v0.47.0
+      - name: Install TFLint
+        run: |
+          curl -sSLO https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh
+          chmod +x install_linux.sh
+          sudo ./install_linux.sh
 
       - name: Terraform Init, Validate & Plan
         run: |
-          ENV_DIR="${{ steps.getenv.outputs.environment }}"
-          
-          # Create directory if it doesn't exist
-          mkdir -p "$ENV_DIR"
-          
+          ENV_DIR="terraform/${{ steps.getenv.outputs.environment }}"
           echo "Using environment directory: $ENV_DIR"
           
-          # Initialize if .terraform doesn't exist
-          if [ ! -d "$ENV_DIR/.terraform" ]; then
-            terraform -chdir="$ENV_DIR" init
-          fi
+          # Initialize Terraform
+          terraform -chdir="$ENV_DIR" init \
+            -backend-config="bucket=your-tfstate-bucket" \
+            -backend-config="key=${{ steps.getenv.outputs.environment }}/terraform.tfstate"
           
+          # Validate and Plan
           terraform -chdir="$ENV_DIR" validate
           terraform -chdir="$ENV_DIR" plan
-          
+
   ansible:
     runs-on: ubuntu-latest
     env:
