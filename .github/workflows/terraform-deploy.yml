@@ -1,3 +1,4 @@
+
 name: Terraform CI
 
 on:
@@ -32,11 +33,21 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Determine Environment Directory
+      - name: Determine Environment
         id: getenv
         run: |
-          branch="${GITHUB_REF#refs/heads/}"
-          echo "environment=$branch" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            branch="${GITHUB_REF#refs/heads/}"
+            case $branch in
+              main) env="prod" ;;
+              release/*) env="staging" ;;
+              *) env="dev" ;;
+            esac
+          else
+            env="dev" # Default for tags/other triggers
+          fi
+          echo "environment=$env" >> $GITHUB_OUTPUT
+          echo "branch=$branch" >> $GITHUB_OUTPUT
 
       - name: Install TFLint
         run: |
@@ -46,11 +57,25 @@ jobs:
 
       - name: Terraform Init, Validate & Plan
         run: |
-          echo "Changing to environment directory: ${{ steps.getenv.outputs.environment }}"
-          cd "${{ steps.getenv.outputs.environment }}"
-          terraform init
-          terraform validate
-          terraform plan
+          ENV_DIR="terraform/${{ steps.getenv.outputs.environment }}"
+          echo "Using environment directory: $ENV_DIR"
+          
+          # Force AWS CLI to use us-east-1
+          export AWS_REGION=us-east-1
+          export AWS_DEFAULT_REGION=us-east-1
+          
+          # Initialize with explicit endpoint configuration
+          terraform -chdir="$ENV_DIR" init \
+            -backend-config="bucket=acs730-final-project-bucket" \
+            -backend-config="key=${{ steps.getenv.outputs.environment }}/terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="endpoint=https://s3.us-east-1.amazonaws.com" \
+            -backend-config="skip_region_validation=true" \
+            -reconfigure
+          
+          # Validate and plan
+          terraform -chdir="$ENV_DIR" validate
+          terraform -chdir="$ENV_DIR" plan -input=false
 
   ansible:
     runs-on: ubuntu-latest
