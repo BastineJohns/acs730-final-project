@@ -46,30 +46,39 @@ This project demonstrates the use of DevOps practices like Terraform, Ansible, a
 
 ```plaintext
 .
-├── prod/
-│   ├── main.tf
-│   ├── variables.tf
-│   └── backend.tf
-├── dev/
-│   ├── main.tf
-│   ├── variables.tf
-│   └── backend.tf
-├── modules/
-│   ├── network/
+├── .github/
+│   └── workflows/
+│       └── terraform-deploy.yml
+├── ansible/
+│   ├── ansible.cfg
+│   ├── aws_ec2.yaml
+│   └── webserver.yml
+├── terraform/
+│   ├── dev/
+│   │   ├── backend.tf
 │   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── load_balancer/
+│   │   └── variables.tf
+│   ├── modules/
+│   │   ├── load_balancer/
+│   │   │   ├── main.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── variables.tf
+│   │   ├── networking/
+│   │   │   ├── main.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── variables.tf
+│   │   └── webserver/
+│   │       ├── main.tf
+│   │       ├── outputs.tf
+│   │       └── variables.tf
+│   ├── prod/
+│   │   ├── backend.tf
 │   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   └── webserver/
-│       ├── main.tf
-│       ├── variables.tf
-│       └── outputs.tf
-├── .github/workflows/
-│   ├── terraform-scan.yml
-│   └── terraform-deploy.yml
+│   │   └── variables.tf
+│   ├── staging/
+│   │   ├── backend.tf
+│   │   ├── main.tf
+│   │   └── variables.tf
 
 ```
 
